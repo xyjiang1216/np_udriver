@@ -10,8 +10,12 @@ else
 
 	PWD :=$(shell pwd)
       default:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) ARCH=x86_64 clean
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) ARCH=x86_64 modules  
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) ARCH=arm64 clean
+	#$(MAKE) -C $(KERNELDIR) M=$(PWD) ARCH=x86_64 clean
+	
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) ARCH=arm64 modules  
+	#$(MAKE) -C $(KERNELDIR) M=$(PWD) ARCH=x86_64 modules  
 endif
       clean:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) ARCH=x86_64 modules  
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) ARCH=arm64 clean
+	#$(MAKE) -C $(KERNELDIR) M=$(PWD) ARCH=x86_64 modules  

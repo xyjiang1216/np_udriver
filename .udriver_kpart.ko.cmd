@@ -1,1 +1,0 @@
-cmd_/home/xyjiang/Desktop/0917-x86_rw_test/udriver_kpart.ko := ld -r -m elf_x86_64 -z max-page-size=0x200000 -T ./scripts/module-common.lds --build-id  -o /home/xyjiang/Desktop/0917-x86_rw_test/udriver_kpart.ko /home/xyjiang/Desktop/0917-x86_rw_test/udriver_kpart.o /home/xyjiang/Desktop/0917-x86_rw_test/udriver_kpart.mod.o ;  true
