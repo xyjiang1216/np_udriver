@@ -3,6 +3,12 @@
 #include <linux/kthread.h>
 /******************* 全局变量 *******************/
 
+//set cpu id
+static int    param_cpu_id;
+module_param(param_cpu_id    , int, (S_IRUSR | S_IRGRP | S_IROTH));
+MODULE_PARM_DESC(param_cpu_id, "CPU ID that operations run on");
+
+
 // pci_device_id & pci_device
 static struct pci_device_id np_pci_ids[] = {
 	{PCI_DEVICE(0x0755,0x0755)},
@@ -102,11 +108,18 @@ static int np_pci_cdev_mmap(struct file *filp, struct vm_area_struct *vma){
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
+	//locked-on when the page is fault-in?
 	vma->vm_flags |= 0x00080000;
+	//TODO: should give VM_IO a try.
+	vma->vm_flags |= 0x00004000; // or VM_IO which in most cases should be 00004000.
 
-	if(remap_pfn_range(vma, vma->vm_start, mem_info[mem_index].phy_addr >> PAGE_SHIFT, 
+	if(io_remap_pfn_range(vma, vma->vm_start, mem_info[mem_index].phy_addr >> PAGE_SHIFT, 
 						vma->vm_end - vma->vm_start, 
 						vma->vm_page_prot)){// PAGE_SHARED
+	
+	//if(remap_pfn_range(vma, vma->vm_start, mem_info[mem_index].phy_addr >> PAGE_SHIFT, 
+	//					vma->vm_end - vma->vm_start, 
+	//					vma->vm_page_prot)){// PAGE_SHARED
 		printk("******************** mmap error ********************\n");
 		return -1;
 	}
@@ -471,7 +484,7 @@ static int np_kernel_probe(struct pci_dev *pdev, const struct pci_device_id *pid
 	np_sw_init(pdev);
 
 	// 创建写缓冲区的线程
-//	npe_start_thread();
+	npe_start_thread();
 	
 
 
@@ -550,8 +563,17 @@ static void np_kernel_release(struct pci_dev *pdev){
 
 static int __init udriver_init_module(void){
 //	printk(KERN_ERR "start init...\n");
+	int cpu_id;
+  	if(param_cpu_id < 0 || param_cpu_id > 4) {
+    	printk(KERN_INFO "toy: unable to load module without cpu parameter\n");
+    	return -1;
+  	}
+  	printk(KERN_INFO "np_driver: loading to device driver, param_cpu_id: %d\n", param_cpu_id);
+	cpu_id = get_cpu();
+  	printk(KERN_INFO "toy init called and running on CPU: %d\n", cpu_id);
 	pci_register_driver(&udriver_kpart);
 //	printk(KERN_ERR "init done!\n");
+	put_cpu();
 	return 0;
 }
 
