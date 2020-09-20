@@ -25,5 +25,31 @@ struct buf_addr_info
 	struct buf_addr_triple buf_addr[200];
 };
 # pragma pack()
+/*
+// PCIE 寄存器定义说明
+#define NPE_REG_THREAD_CTL 					0x000
+#define NPE_REG_HARD_SYS_SET 				0x008
+#define NPE_REG_HARD_DESC_DMA				0x010
+#define NPE_REG_VIRT_ADDR 					0x018
+#define NPE_PORT_CLEAN 						0x020
+#define NPE_REG_HARD_RESET 					0x028
+#define NPE_REG_CHANNEL_THRESHOLD 			0x030
+#define NPE_REG_HARD_BUF_REQUEST_DESC_CNT 	0x038
+*/
 
+// bar0空间的结构体
+// 硬件寄存器的长度为32位，因此0~31同32~63的内容是完全一样的
+# pragma pack(1)
+struct bar0_regs
+{
+	uint64_t thread_ctl;				// 写需要发送的报文地址的寄存器
+	uint64_t hard_sys_set;
+	uint64_t hard_desc_dma;
+	uint64_t virt_addr;
+	uint64_t port_clean;
+	uint64_t hard_reset;
+	uint64_t channel_threshold;
+	uint64_t hard_buf_request_desc_cnt;
+};
+# pragma pack()
 

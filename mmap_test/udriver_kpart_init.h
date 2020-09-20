@@ -15,11 +15,12 @@
 /******************* 宏 *******************/
 #define DRIVER_NAME "udriver_kpart"
 #define ORDER_OF_PAGES_INFO_4_RELEASE 2 		// 存放所有页表信息的结构体的页表order 16K
-#define ORDER_OF_BUF_ADDR_INFO 9			// 存放buf_addr_info结构体的内存的order 2M
-#define DMA_FLAG 1					// 是DMA内存，并且进行了DMA映射
-#define NOT_DMA_FLAG 0					// 不是DMA内存，没进行DMA映射
-#define ALLOC_HW_BUF_NUM 1				// 申请的缓冲区数目
-#define ORDER_OF_BUF 9					// 缓冲区大小 2M
+#define ORDER_OF_BUF_ADDR_INFO 9				// 存放buf_addr_info结构体的内存的order 2M
+#define DMA_FLAG 1								// 是DMA内存，并且进行了DMA映射
+#define NOT_DMA_FLAG 0							// 不是DMA内存，没进行DMA映射
+#define ALLOC_HW_BUF_NUM 128					// 申请的硬件管理的缓冲区数目
+#define ALLOC_SW_BUF_NUM 2					// 申请的软件管理的缓冲区数目
+#define ORDER_OF_BUF 9							// 缓冲区大小 2M
 
 /***************** 结构体 *****************/
 
@@ -82,11 +83,13 @@ static uint64_t get_pages(uint64_t pages_order, uint8_t dma_flag);		//dma_flag 1
 // 将get_pages申请的内存记录在pages_info_4_release结构体中
 static void record_pages_info(struct pages_info_4_release *p_release, uint64_t base_address, uint64_t bus_address, uint64_t pages_order, uint64_t dma_flag);
 // 软件缓冲区初始化
-static int np_sw_init(void);
+static int np_sw_init(struct pci_dev *pdev);
 // 释放pages_info_4_release中记录的所有内存，并释放存放pages_info_4_release结构体的内存
 // 使用kzalloc()分配的内存，在np_kernel_release中被释放
-static void free_all_pages(struct pages_info_4_release *p_release);
+static void free_all_pages(struct pci_dev *pdev, struct pages_info_4_release *p_release);
 
+static int np_kernel_probe(struct pci_dev *pdev, const struct pci_device_id *pid_tbl);
+static void np_kernel_release(struct pci_dev *pdev);
 
 // 字符设备文件的file_operations
 static int np_pci_cdev_open(struct inode *inode, struct file *filp);
