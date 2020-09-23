@@ -5,8 +5,6 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <errno.h>
-// #include <asm/cachectl.h>
-
 
 /******************* 全局变量 *******************/
 // 记录地址三元组信息的结构体，指向map1映射到用户空间的地址
@@ -220,8 +218,11 @@ void polling_buffer(uint64_t first_buf_addr){				// 接收线程的功能 ——
 			// printf("debug mprotect %d\n", err);
 			// return;
 		// }
-	//	cacheflush(current_buf_addr, 2048, ICACHE|DCACHE);
+	//	cacheflush(current_buf_addr, 2048, 0);
 	//	msync(current_buf_addr, 64, MS_SYNC);
+
+	//	rmb();
+	//	dma_rmb();
 
 		// busy位是否为1
 		if(((struct cp_packet *)current_buf_addr)->cp.busy){

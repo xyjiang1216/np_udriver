@@ -1,13 +1,7 @@
 #include "udriver_kpart_init.h"
-#include "test.h"
+#include "udriver_kpart_pkt.h"
 #include <linux/kthread.h>
 /******************* 全局变量 *******************/
-
-//set cpu id
-static int    param_cpu_id;
-module_param(param_cpu_id    , int, (S_IRUSR | S_IRGRP | S_IROTH));
-MODULE_PARM_DESC(param_cpu_id, "CPU ID that operations run on");
-
 
 // pci_device_id & pci_device
 static struct pci_device_id np_pci_ids[] = {
@@ -69,7 +63,7 @@ static int np_pci_cdev_mmap(struct file *filp, struct vm_area_struct *vma){
 		// return -1;
 	// }
 
-// //	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	//vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	// vma->vm_flags |= 0x00080000;
 
@@ -105,24 +99,26 @@ static int np_pci_cdev_mmap(struct file *filp, struct vm_area_struct *vma){
 	// 检查传入的物理地址是否与页大小对齐
 	if (mem_info[mem_index].phy_addr & ~PAGE_MASK)
 		return -1;
-
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	//locked-on when the page is fault-in?
-	vma->vm_flags |= 0x00080000;
-	//TODO: should give VM_IO a try.
-	vma->vm_flags |= 0x00004000; // or VM_IO which in most cases should be 00004000.
-
-	if(io_remap_pfn_range(vma, vma->vm_start, mem_info[mem_index].phy_addr >> PAGE_SHIFT, 
+	if(mem_index == 0){
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		if(remap_pfn_range(vma, vma->vm_start, mem_info[mem_index].phy_addr >> PAGE_SHIFT, 
 						vma->vm_end - vma->vm_start, 
-						vma->vm_page_prot)){// PAGE_SHARED
-	
-	//if(remap_pfn_range(vma, vma->vm_start, mem_info[mem_index].phy_addr >> PAGE_SHIFT, 
-	//					vma->vm_end - vma->vm_start, 
-	//					vma->vm_page_prot)){// PAGE_SHARED
-		printk("******************** mmap error ********************\n");
-		return -1;
+						 vma->vm_page_prot)){// vma->vm_page_prot
+			printk("******************** mmap error ********************\n");
+			return -1;
+		}
+	}else{
+	//	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		if(remap_pfn_range(vma, vma->vm_start, mem_info[mem_index].phy_addr >> PAGE_SHIFT, 
+						vma->vm_end - vma->vm_start, 
+						PAGE_SHARED)){// vma->vm_page_prot
+			printk("******************** mmap error ********************\n");
+			return -1;
+		}
 	}
+//	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+//	vma->vm_flags |= (VM_IO | VM_RESERVED);
 	printk("mmap sucess!\n");	
 	printk("------------------ the index is %d -----------------\n", mem_index);
 	
@@ -204,15 +200,18 @@ static int np_sw_init(struct pci_dev *pdev){
 	// 申请128块硬件缓冲区 + 2块软件缓冲区
 	// 规定前128块为硬件缓冲区，后2块为软件缓冲区
 	for(i = 0; i < ALLOC_HW_BUF_NUM + ALLOC_SW_BUF_NUM; i++){
-		if((pages_addr = get_pages(ORDER_OF_BUF, DMA_FLAG)) == 0){
-			printk("hard dma buff gets error in func get_pages\n");
-			goto err_sw_init;
-		}
-		if(i==0)g_pages_addr = pages_addr;
-		phy_addr = virt_to_phys((void *)pages_addr);
+//		if((pages_addr = get_pages(ORDER_OF_BUF, DMA_FLAG)) == 0){
+//			printk("hard dma buff gets error in func get_pages\n");
+//			goto err_sw_init;
+//		}
+//		if(i==0)g_pages_addr = pages_addr;
+//		phy_addr = virt_to_phys((void *)pages_addr);
 		pages_size = (1 << ORDER_OF_BUF)* PAGE_SIZE;
-		bus_addr = dma_map_single(&(pdev->dev), (void *)pages_addr, pages_size, DMA_BIDIRECTIONAL);
-		
+//		bus_addr = dma_map_single(&(pdev->dev), (void *)pages_addr, pages_size, DMA_BIDIRECTIONAL);
+
+		pages_addr = (uint64_t)dma_alloc_coherent(&(pdev->dev), pages_size, &bus_addr, GFP_KERNEL);
+		phy_addr = virt_to_phys((void *)pages_addr);
+		if(i == 0) g_pages_addr = pages_addr;	
 		record_pages_info(pages_info_4_release, pages_addr, bus_addr, ORDER_OF_BUF, DMA_FLAG);
 
 		// 缓冲区的地址对信息记录在全局变量buff_addr_info当中
@@ -387,10 +386,10 @@ static int npe_recv_poll_netdev(void *data)
 			writeq(((struct cp_packet*)current_buf_addr)->cs.ctl, bar0_addr);
 
 
-			current_buf_addr = next_buf_addr;
+		//	current_buf_addr = next_buf_addr;
 
 
-		//	current_buf_addr += 2048;
+			current_buf_addr += 2048;
 //			if(i++> 100)
 //				return 0;
 		}else{
@@ -484,7 +483,7 @@ static int np_kernel_probe(struct pci_dev *pdev, const struct pci_device_id *pid
 	np_sw_init(pdev);
 
 	// 创建写缓冲区的线程
-	npe_start_thread();
+//	npe_start_thread();
 	
 
 
@@ -532,14 +531,16 @@ static void free_all_pages(struct pci_dev *pdev, struct pages_info_4_release *p_
 		bus_addr = p_release->p_info[i].bus_addr;
 		// 解除dma映射
 		if(p_release->p_info[i].is_dma_map == 1){
-			dma_unmap_single(&(pdev->dev), bus_addr, page_size, DMA_BIDIRECTIONAL);
-		}
+		//	dma_unmap_single(&(pdev->dev), bus_addr, page_size, DMA_BIDIRECTIONAL);
+			dma_free_coherent(&(pdev->dev),page_size, (void *)base_addr, bus_addr);
+		}else{
 		// 解除页保留
-		for(page_reserve = base_addr; page_reserve < base_addr + page_size; page_reserve += PAGE_SIZE){
-			ClearPageReserved(virt_to_page(page_reserve));
-		}
+			for(page_reserve = base_addr; page_reserve < base_addr + page_size; page_reserve += PAGE_SIZE){
+				ClearPageReserved(virt_to_page(page_reserve));
+			}
 		// 释放页
-		free_pages(p_release->p_info[i].base_addr, p_release->p_info[i].order);
+			free_pages(p_release->p_info[i].base_addr, p_release->p_info[i].order);
+		}
 	}
 
 	// 释放记录pages_info_4_release结构体的页
@@ -563,17 +564,8 @@ static void np_kernel_release(struct pci_dev *pdev){
 
 static int __init udriver_init_module(void){
 //	printk(KERN_ERR "start init...\n");
-	int cpu_id;
-  	if(param_cpu_id < 0 || param_cpu_id > 4) {
-    	printk(KERN_INFO "toy: unable to load module without cpu parameter\n");
-    	return -1;
-  	}
-  	printk(KERN_INFO "np_driver: loading to device driver, param_cpu_id: %d\n", param_cpu_id);
-	cpu_id = get_cpu();
-  	printk(KERN_INFO "toy init called and running on CPU: %d\n", cpu_id);
 	pci_register_driver(&udriver_kpart);
 //	printk(KERN_ERR "init done!\n");
-	put_cpu();
 	return 0;
 }
 

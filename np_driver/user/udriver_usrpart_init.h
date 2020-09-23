@@ -14,6 +14,15 @@
 #include <string.h>
 #include <unistd.h>
 
+//#define mb()    __asm__ __volatile__("": : :"memory")
+//#define rmb()   __asm__ __volatile__("": : :"memory")
+//#define wmb()   __asm__ __volatile__("": : :"memory")
+//#define dmb(opt)    __asm__ __volatile__("dmb" #opt: : :"memory")
+#define dmb(opt)    __asm__ __volatile__("dmb " #opt: : :"memory")
+#define dma_rmb() dmb(oshld)
+#define dma_wmb() dmb(oshst)
+
+
 #define NP_PCI_CDEV_FILE_PATH 		"/dev/np_pci_cdev0"		// 设备文件路径
 #define ALLOC_HW_BUF_NUM 			128						// 申请的硬件管理的缓冲区数目
 #define ALLOC_SW_BUF_NUM 			2						// 申请的软件管理的缓冲区数目

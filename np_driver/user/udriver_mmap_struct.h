@@ -42,14 +42,14 @@ struct buf_addr_info
 # pragma pack(1)
 struct bar0_regs
 {
-	uint64_t thread_ctl;				// 写需要发送的报文地址的寄存器
-	uint64_t hard_sys_set;
-	uint64_t hard_desc_dma;
-	uint64_t virt_addr;
-	uint64_t port_clean;
-	uint64_t hard_reset;
-	uint64_t channel_threshold;
-	uint64_t hard_buf_request_desc_cnt;
+	volatile uint64_t thread_ctl;				// 写需要发送的报文地址的寄存器
+	volatile uint64_t hard_sys_set;
+	volatile uint64_t hard_desc_dma;
+	volatile uint64_t virt_addr;
+	volatile uint64_t port_clean;
+	volatile uint64_t hard_reset;
+	volatile uint64_t channel_threshold;
+	volatile uint64_t hard_buf_request_desc_cnt;
 };
 # pragma pack()
 
