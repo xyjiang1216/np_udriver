@@ -337,9 +337,19 @@ int create_polling_thread(void){
 	int temp;
 	int i;
 	memset(&thread, 0, sizeof(thread));		// 清零
+	
+	//设置为实时调度
+	pthread_attr_t  pthread_pro;
+  	pthread_attr_init(&pthread_pro);
+ 
+  	pthread_attr_setschedpolicy(&pthread_pro, SCHED_RR);
+  	struct sched_param s_parm;
+  	s_parm.sched_priority = sched_get_priority_max(SCHED_RR);
+  	pthread_attr_setschedparam(&pthread_pro, &s_parm);
+ 
 	/*创建线程*/
 	for(i = 0; i < THREAD_NUM; i++){
-		temp = pthread_create(&thread[i], NULL, (void *)&polling_buffer, (void *)buf_addr_info->buf_addr[0].user_vir_addr);
+		temp = pthread_create(&thread[i], &pthread_pro, (void *)&polling_buffer, (void *)buf_addr_info->buf_addr[0].user_vir_addr);
 	//	temp = pthread_create(&thread[i], NULL, (void *)&polling_buffer, (void *)buf_addr_info->buf_addr[ALLOC_HW_BUF_NUM].user_vir_addr);
 		if(temp){
 			printf("fail to create thread %d\n", i);
