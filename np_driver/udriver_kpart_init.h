@@ -19,7 +19,7 @@
 #define DMA_FLAG 1								// 是DMA内存，并且进行了DMA映射
 #define NOT_DMA_FLAG 0							// 不是DMA内存，没进行DMA映射
 #define ALLOC_HW_BUF_NUM 128					// 申请的硬件管理的缓冲区数目
-#define ALLOC_SW_BUF_NUM 2					// 申请的软件管理的缓冲区数目
+#define ALLOC_SW_BUF_NUM 32					// 申请的软件管理的缓冲区数目
 #define ORDER_OF_BUF 9							// 缓冲区大小 2M
 
 /***************** 结构体 *****************/
@@ -57,7 +57,7 @@ struct buf_addr_info
 	uint64_t sw_buf_cnt;
 	uint64_t hw_buf_cnt;
 	uint64_t vir_addr_first;					// 记录用户空间虚拟地址开头的32个bits，即4个字节
-	struct buf_addr_triple buf_addr[200];
+	struct buf_addr_triple buf_addr[256];
 }__attribute__((packed));
 
 // np_pci_cdev包含字符设备和一些内存的地址
@@ -71,7 +71,8 @@ struct np_pci_cdev
 {
 	struct cdev cdev;
 	uint8_t mem_info_cnt;
-	struct np_pci_cdev_mem np_pci_cdev_mem_info[200];
+	struct np_pci_cdev_mem np_pci_cdev_mem_info[ALLOC_HW_BUF_NUM +
+												ALLOC_SW_BUF_NUM];
 };
 
 
@@ -82,8 +83,7 @@ struct np_pci_cdev
 static uint64_t get_pages(uint64_t pages_order, uint8_t dma_flag);		//dma_flag 1:有GFP_DMA 0:无GFP_DMA
 // 将get_pages申请的内存记录在pages_info_4_release结构体中
 static void record_pages_info(struct pages_info_4_release *p_release, uint64_t base_address, uint64_t bus_address, uint64_t pages_order, uint64_t dma_flag);
-// 软件缓冲区初始化
-static int np_sw_init(struct pci_dev *pdev);
+
 // 释放pages_info_4_release中记录的所有内存，并释放存放pages_info_4_release结构体的内存
 // 使用kzalloc()分配的内存，在np_kernel_release中被释放
 static void free_all_pages(struct pci_dev *pdev, struct pages_info_4_release *p_release);
@@ -92,5 +92,3 @@ static int np_kernel_probe(struct pci_dev *pdev, const struct pci_device_id *pid
 static void np_kernel_release(struct pci_dev *pdev);
 
 // 字符设备文件的file_operations
-static int np_pci_cdev_open(struct inode *inode, struct file *filp);
-static int np_pci_cdev_mmap(struct file *filp, struct vm_area_struct *vma);

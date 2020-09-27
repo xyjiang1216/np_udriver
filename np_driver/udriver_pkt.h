@@ -165,3 +165,13 @@ struct cp_packet
 	//报文数据部分
 	uint8_t pkt_data[0];
 }__attribute__((packed));
+
+/*硬件寄存器信息*/
+/*发送控制类型*/
+enum NPE_PKT_SEND_TYPE
+{
+	NPE_CTR_SEND = 0,		/*发送硬件描述符*/
+	NPE_CTR_OSND = 1,		/*发送软件描述符*/
+	NPE_CTR_DROP = 2,		/*硬件描述符丢弃，用于硬件描述符回收*/
+	NPE_CTR_OSDP = 3		/*软件描述符丢弃，用于软件描述符回收*/
+};/*此数据类型占用3bit*/

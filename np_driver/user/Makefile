@@ -1,8 +1,8 @@
-objects = udriver_usrpart_init.o
+objects = app.o
 
-udriver_usrpart: $(objects)
-	gcc -g -o udriver_usrpart $(objects) -lpthread
-udriver_usrpart_init.o: udriver_usrpart_init.c  udriver_usrpart_init.h udriver_mmap_struct.h udriver_usrpart_pkt.h
-	gcc -c udriver_usrpart_init.c
+app: $(objects)
+	gcc -g -o app $(objects) -lpthread
+app.o: app.c udriver_usrpart_pkt.h user_pkt_transfer.h
+	gcc -c app.c
 clean:
-	rm udriver_usrpart $(objects)
+	rm app $(objects)
