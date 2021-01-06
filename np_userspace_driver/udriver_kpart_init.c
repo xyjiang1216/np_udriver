@@ -35,12 +35,16 @@ static struct buf_addr_info *buf_addr_info;
 static char* bar0_addr;
 
 /******************* 函数定义 *******************/
-
+// inode结构是内核在内部用来表示文件的结构
+// 不同于file结构
+// 对于单个文件而言，可能会有许多个表示打开的文件描述符的file结构，但是它们都指向一个inode结构
 static int np_pci_cdev_open(struct inode *inode, 
 							struct file *filp)
 {
 	// 使设备文件的私有数据指向将全局变量np_pci_cdev
 	struct np_pci_cdev *my_np_pci_cdev;	
+	// 当inode指向一个字符设备文件时
+	// inode结构的struct cdev *i_cdev字段包含了指向struct cdev结构的指针
 	my_np_pci_cdev = container_of(inode->i_cdev, 
 								struct np_pci_cdev, cdev);
 	filp->private_data = my_np_pci_cdev;
