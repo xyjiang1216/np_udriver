@@ -200,15 +200,7 @@ static int np_mem_init(struct pci_dev *pdev){
 												&bus_addr, 
 												GFP_KERNEL);
 */
-		// 流式DMA映射
-/*		if((pages_addr = get_pages(ORDER_OF_BUF, DMA_FLAG)) == 0){
-			printk("hard dma buff gets error in func get_pages\n");
-			goto err_mem_init;
-		}
-		phy_addr = virt_to_phys((void *)pages_addr);
-		if(i == 0) g_pages_addr = pages_addr;	
-		bus_addr = dma_map_single(&(pdev->dev), (void *)pages_addr, pages_size, DMA_BIDIRECTIONAL);
-*/		
+	
 		if((pages_addr = get_pages(ORDER_OF_BUF, DMA_FLAG)) == 0){
 			printk("hard dma buff gets error in func get_pages\n");
 			goto err_mem_init;
@@ -253,137 +245,6 @@ err_mem_init:
 	free_all_pages(pdev, pages_info_4_release);
 	return -1;
 }
-
-void np_hw_reset(void){
-	uint64_t hw_desc;
-	int i;
-	writeq(1, bar0_addr + 0x028);
-	msleep(1);
-	writeq(0, bar0_addr + 0x028);
-	
-	writeq(7, bar0_addr + 0x020);
-	msleep(1);
-	writeq(0, bar0_addr + 0x020);
-
-	// 向bar0_vir_base+0x018下发报文高32位虚拟地址信息
-	// 向寄存器写buf_addr_info结构体的
-	// 成员变量uint64_t vir_addr_first的信息
-	writeq(buf_addr_info->vir_addr_first, bar0_addr + 0x018);
-
-	// 下发DMA空间描述符信息：21位物理地址+21位虚拟地址
-	for (i = 0; i < buf_addr_info->hw_buf_cnt; i++) {
-		// 内核空间虚拟地址左移32位
-		hw_desc = buf_addr_info->buf_addr[i].user_vir_addr << 32;
-		// 上述结果右移32位
-		hw_desc = hw_desc >> 32;
-		// 上述结果左移10位 与 总线地址右移11位后 做或操作
-		hw_desc = (hw_desc << 10 | \
-				buf_addr_info->buf_addr[i].bus_addr >> 11);
-		// 向0x10的位置写上述结果
-	//	bar0_registers->hard_desc_dma = hw_desc;
-		writeq(hw_desc, bar0_addr + 0x010);
-	}
-	printk("%s\n", "hardware reset success!");
-	return;
-}
-
-void np_show_pkt(unsigned char *pkt)
-{
-        int i=0,len=0;
-        printk("---------------------*******---------------------\n");
-        printk("Packet Addr:%lX\n",(unsigned long)pkt);
-        for(i=0;i<16;i++)
-        {
-                if(i % 16 == 0)
-                        printk("      ");
-                printk(" %X ",i);
-                if(i % 16 == 15)
-                        printk("\n");
-        }
-        len=256;
-        //len=32;
-        for(i=0;i<len;i++)
-        {
-                if(i % 16 == 0)
-                        printk("%04X: ",i);
-                printk("%02X ",*(pkt+i));
-                if(i % 16 == 15)
-                        printk("\n");
-        }
-        if(len % 16 !=0)
-                printk("\n");
-        printk("--------------------*******---------------------\n");
-}
-
-
-static int np_kernel_poll(void)
-{
-	struct cp_packet *pkt;
-	char *current_buf;
-	char *next_buf;
-	
-	current_buf = (char *)g_pages_addr;
-	pkt = (struct cp_packet *)current_buf;
-
-	while(1)
-	{
-		if(pkt->cp.busy)
-		{
-
-			if (pkt->um.inport == 0) {
-				pkt->um.inport = pkt->um.outport;
-				pkt->um.outport = 1;
-			}
-			else if (pkt->um.inport == 1) {
-				pkt->um.inport = pkt->um.outport;
-				pkt->um.outport = 0;
-			}
-
-			// 设置um_matadata的目标模块字段
-			pkt->um.dmid = 0x45;
-			// 设置um_metadata的pkt_dse字段
-			pkt->um.pktdst = 0;
-
-			// 设置cp_head的描述符控制字段
-			pkt->cp.ctl = 0;
-			// 设置um_matadata的报文类型字段			
-			pkt->um.pkt_type = 0;
-
-			// 将busy位置为0
-			pkt->cp.busy = 0;
-			// 发送报文
-			// 把该报文的第一个八字节写到BAR0空间的第一个寄存器
-			writeq(pkt->cs.ctl, bar0_addr);
-
-			current_buf += 2048;
-			pkt = (struct cp_packet *)current_buf;
-
-		}else{
-
-			schedule();
-		}
-	}
-	return 0;
-}
-
- void np_thread_start_up(void )
-{	
-
-	struct task_struct *tsk;
-       		
-	tsk = kthread_create(np_kernel_poll,NULL,"FAST");	
-	// 将线程绑定在2号核上
-	set_cpus_allowed_ptr(tsk, cpumask_of(2));			
-	if(IS_ERR(tsk))
-	{			
-		tsk = NULL;
-	}
-	else
-	{			
-		wake_up_process(tsk);
-	}	
-}
-
 
 
 static int np_kernel_probe(struct pci_dev *pdev, 
@@ -452,36 +313,6 @@ static int np_kernel_probe(struct pci_dev *pdev,
 
 	// 软件缓冲区初始化
 	np_mem_init(pdev);
-
-	// 创建写缓冲区的线程
-//	np_thread_start_up();
-	
-
-
-	/***************** 调试用 ******************/
-/*
-	// 下发virt_first
-	buf_addr_info->vir_addr_first = ((buf_addr_info->buf_addr[0].user_vir_addr ^ buf_addr_info->buf_addr[0].phy_addr) \
-		| buf_addr_info->buf_addr[0].phy_addr) >> 32;
-
-	// 硬件复位 下发地址
-	np_hw_reset();
-
-	// 创建轮询线程
-	np_thread_start_up();
-
-	// 下发控制信息   1：os_endian     32：NPE_HARD_TAG_NUM  1：g_npe_adapter->hw.use_dma_cnt
-	sys_ctl = (0 << 15) | (1 << 14) | (32 << 6) | 1;
-//	bar0_registers->hard_sys_set = sys_ctl;
-	writeq(sys_ctl, bar0_addr + 0x008);
-	msleep(1);
-
-	writeq(2, bar0_addr + 0x080);
-	msleep(1);
-*/
-
-
-//	np_show_pkt((char *)buf_addr_info);			// 调试用——查看buf_addr_info里面的信息
 
 	return 0;
 }
